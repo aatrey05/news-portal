@@ -22,9 +22,11 @@
 // }
 
 
-// Define a type matching your news article structure
+// src/api/news.ts
+
+// Define the structure of a news article matching your API response
 export interface NewsAPIArticle {
-  id: string;               // Add this line
+  id: string;              // Injected ID (from URL or fallback)
   url: string;
   title: string;
   description?: string;
@@ -37,18 +39,37 @@ export interface NewsAPIArticle {
   author?: string;
 }
 
-export async function fetchPersonalizedNews(): Promise<NewsAPIArticle[]> {
-  const response = await fetch("http://localhost:3001/api/news");
-  const data = await response.json();
+// Optionally, define the API response shape for better typings
+interface NewsAPIResponse {
+  status: string;
+  totalResults: number;
+  articles: Omit<NewsAPIArticle, 'id'>[]; // Articles without the injected id
+  message?: string;
+}
+
+/**
+ * Fetch personalized news articles with pagination support.
+ * Modify the URL if you add pagination parameters on backend.
+ */
+export async function fetchPersonalizedNews(
+  page = 1,
+  pageSize = 10
+): Promise<{ articles: NewsAPIArticle[]; totalResults: number }> {
+  const url = `http://localhost:3001/api/news?page=${page}&pageSize=${pageSize}`;
+
+  const response = await fetch(url);
+  const data: NewsAPIResponse = await response.json();
 
   if (data.status !== "ok" || !Array.isArray(data.articles)) {
     throw new Error(data.message || "Failed to fetch news or invalid response");
   }
 
-  // Map and add 'id' based on 'url' or fallback to index string
-  return data.articles.map((article: Omit<NewsAPIArticle, 'id'>, index: number) => ({
+  const articles = data.articles.map((article, index) => ({
     ...article,
-    id: article.url || index.toString(),   // Inject id here
+    id: article.url || index.toString(),
   }));
+
+  return { articles, totalResults: data.totalResults };
 }
+
 
